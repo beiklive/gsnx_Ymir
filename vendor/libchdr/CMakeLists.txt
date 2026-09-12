@@ -1,4 +1,6 @@
-if (Ymir_LIBRARY_ONLY)
+# vcpkg packages (miniz/zstd) are unavailable on the Nintendo Switch toolchain;
+# fall back to the deps bundled with libchdr in that case (like library-only builds do).
+if (Ymir_LIBRARY_ONLY OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     add_subdirectory(libchdr/deps/miniz-3.1.1 EXCLUDE_FROM_ALL)
     add_subdirectory(libchdr/deps/zstd-1.5.7 EXCLUDE_FROM_ALL)
 else ()
@@ -28,7 +30,7 @@ add_library(chdr-static STATIC
 )
 target_include_directories(chdr-static PRIVATE ${CHDR_INCLUDES} PUBLIC libchdr/include)
 target_link_libraries(chdr-static PRIVATE chdr-lzma)
-if (Ymir_LIBRARY_ONLY)
+if (Ymir_LIBRARY_ONLY OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     target_link_libraries(chdr-static PRIVATE zstd miniz)
 else ()
     target_link_libraries(chdr-static PRIVATE zstd::libzstd_static ZLIB::ZLIB miniz::miniz)

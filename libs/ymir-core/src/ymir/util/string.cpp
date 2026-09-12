@@ -11,6 +11,10 @@
         #define NOMINMAX
     #endif
     #include <stringapiset.h>
+#elif defined(__SWITCH__)
+    // newlib on Switch ships iconv.h but no iconv implementation; do the
+    // conversion manually instead.
+    #include <cassert>
 #else
     #include <cassert>
     #include <iconv.h>
@@ -105,6 +109,44 @@ std::wstring StringToWString(std::string_view str) {
     MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstr[0], size);
     return wstr;
 
+#elif defined(__SWITCH__)
+    // Manual UTF-8 -> UTF-32 (wchar_t is 32-bit on aarch64) conversion.
+    std::wstring wstr;
+    wstr.reserve(str.size());
+    size_t i = 0;
+    while (i < str.size()) {
+        const unsigned char c = static_cast<unsigned char>(str[i]);
+        uint32_t cp = 0;
+        size_t extra = 0;
+        if (c < 0x80) {
+            cp = c;
+        } else if ((c & 0xE0) == 0xC0) {
+            cp = c & 0x1F;
+            extra = 1;
+        } else if ((c & 0xF0) == 0xE0) {
+            cp = c & 0x0F;
+            extra = 2;
+        } else if ((c & 0xF8) == 0xF0) {
+            cp = c & 0x07;
+            extra = 3;
+        } else {
+            return L"";
+        }
+        if (i + extra >= str.size()) {
+            return L"";
+        }
+        for (size_t k = 1; k <= extra; ++k) {
+            const unsigned char cc = static_cast<unsigned char>(str[i + k]);
+            if ((cc & 0xC0) != 0x80) {
+                return L"";
+            }
+            cp = (cp << 6) | (cc & 0x3F);
+        }
+        wstr.push_back(static_cast<wchar_t>(cp));
+        i += extra + 1;
+    }
+    return wstr;
+
 #else
     // Linux/macOS/FreeBSD implementation
 
@@ -151,6 +193,30 @@ std::string WStringToString(std::wstring_view wstr) {
     const int size = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), nullptr, 0, nullptr, nullptr);
     std::string str(size, 0);
     WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &str[0], size, nullptr, nullptr);
+    return str;
+
+#elif defined(__SWITCH__)
+    // Manual UTF-32 (wchar_t is 32-bit on aarch64) -> UTF-8 conversion.
+    std::string str;
+    str.reserve(wstr.size() * 3);
+    for (wchar_t wc : wstr) {
+        uint32_t cp = static_cast<uint32_t>(wc);
+        if (cp <= 0x7F) {
+            str.push_back(static_cast<char>(cp));
+        } else if (cp <= 0x7FF) {
+            str.push_back(static_cast<char>(0xC0 | (cp >> 6)));
+            str.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        } else if (cp <= 0xFFFF) {
+            str.push_back(static_cast<char>(0xE0 | (cp >> 12)));
+            str.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+            str.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        } else {
+            str.push_back(static_cast<char>(0xF0 | (cp >> 18)));
+            str.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+            str.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+            str.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        }
+    }
     return str;
 
 #else

@@ -537,6 +537,11 @@ if (Vulkan_FOUND)
     )
 endif ()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    # Provides <sys/mman.h> (used by mio / util::VirtualMemory) on newlib.
+    target_link_libraries(ymir-core PUBLIC switch-compat)
+endif ()
+
 
 # Build precompiled header
 target_precompile_headers(ymir-core

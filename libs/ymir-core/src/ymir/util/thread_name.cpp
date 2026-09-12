@@ -48,6 +48,10 @@ static struct ThreadDynamicLink {
 
     #include <pthread.h>
 
+#elif defined(__SWITCH__)
+
+    // libnx/newlib provides no portable way to name threads.
+
 #endif
 
 namespace util {
@@ -78,6 +82,10 @@ void SetCurrentThreadName(const char *threadName) {
 #elif defined(__APPLE__)
 
     pthread_setname_np(threadName);
+
+#elif defined(__SWITCH__)
+
+    // Thread naming is not supported on Switch.
 
 #endif
 }

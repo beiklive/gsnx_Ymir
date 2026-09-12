@@ -73,7 +73,7 @@ endif ()
 ####################################################################################################
 # Other dependencies
 
-if (NOT Ymir_LIBRARY_ONLY)
+if (NOT Ymir_LIBRARY_ONLY AND NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     # dear ImGui - https://github.com/ocornut/imgui
     # - Using the docking branch
     message(STATUS "==> dear ImGui")

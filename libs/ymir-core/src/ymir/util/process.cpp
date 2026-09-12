@@ -17,6 +17,8 @@
     #include <sys/resource.h>
     #include <unistd.h>
     #include <vector>
+#elif defined(__SWITCH__)
+    // The Switch (newlib/libnx) has no process priority or /proc APIs.
 #else
     #include <limits.h>
     #include <pthread.h>
@@ -42,6 +44,8 @@ std::filesystem::path GetCurrentProcessExecutablePath() {
             path = realPath;
         }
     }
+#elif defined(__SWITCH__)
+    // The Switch does not expose a process executable path via /proc.
 #else
     char pathStr[PATH_MAX];
     ssize_t size = readlink("/proc/self/exe", pathStr, PATH_MAX);
@@ -57,6 +61,9 @@ void BoostCurrentProcessPriority(bool boost) {
     } else {
         SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
     }
+#elif defined(__SWITCH__)
+    // Not supported on Switch; keep the default priority.
+    (void)boost;
 #else
     if (boost) {
         setpriority(PRIO_PROCESS, getpid(), -20);
@@ -74,6 +81,9 @@ void BoostCurrentThreadPriority(bool boost) {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
     }
     SetThreadPriorityBoost(GetCurrentThread(), FALSE);
+#elif defined(__SWITCH__)
+    // Not supported on Switch.
+    (void)boost;
 #else
     int policy;
     struct sched_param param;

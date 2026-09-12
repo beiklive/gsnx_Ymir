@@ -5,8 +5,24 @@ project(Ymir VERSION 0.4.0)
 # is available to determine whether to make SPIR-V compilation required or optional.
 # Vulkan support is excluded from macOS as the system doesn't support it natively.
 # Metal is the preferred backend on that platform.
-if (NOT APPLE)
+# The Nintendo Switch homebrew toolchain (devkitPro) provides no Vulkan packages.
+if (NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     find_package(Vulkan COMPONENTS SPIRV-Tools)
+endif ()
+
+# Detect the Nintendo Switch homebrew target (devkitPro)
+if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    message(STATUS "Ymir: Nintendo Switch target detected (devkitA64)")
+    set(YMIR_SWITCH ON)
+
+    # devkitA64's newlib does not define __unix__ the way third-party headers
+    # (concurrentqueue, fmt, ...) expect, and hides POSIX declarations behind
+    # __DEFAULT_SOURCE. Also relax GCC's strict NEON type checking that the
+    # software VDP renderer's fast paths rely on.
+    add_compile_definitions(__unix__ _DEFAULT_SOURCE)
+    add_compile_options(-flax-vector-conversions)
+else ()
+    set(YMIR_SWITCH OFF)
 endif ()
 
 include(cmake/CMakeRC.cmake)
@@ -131,6 +147,11 @@ endif ()
 
 ## Include third-party libraries
 add_subdirectory(vendor)
+
+if (YMIR_SWITCH)
+    ## Include the Switch compatibility layer (sys/mman.h shim, etc.)
+    add_subdirectory(libs/switch-compat)
+endif ()
 
 ## Configure PGO (apply after vendor so third-party libs don't inherit flags)
 include(cmake/PGO.cmake)
